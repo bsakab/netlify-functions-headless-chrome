@@ -1,54 +1,30 @@
-const chromium = require('chrome-aws-lambda')
-const puppeteer = require('puppeteer-core')
+const chromium = require('chrome-aws-lambda');
 
-exports.handler = async (event, context, callback) => {
-  let theTitle = null
-  let browser = null
-  console.log('spawning chrome headless')
-  try {
-    const executablePath = await chromium.executablePath
+exports.handler = async (event, context) => {
 
-    // setup
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: executablePath,
-      headless: chromium.headless,
-    })
+    const pageToScreenshot = 'https://bitsofco.de';//JSON.parse(event.body).pageToScreenshot;
 
-    // Do stuff with headless chrome
-    const page = await browser.newPage()
-    const targetUrl = 'https://davidwells.io'
+    const browser = await chromium.puppeteer.launch({
+        executablePath: await chromium.executablePath,
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        headless: chromium.headless,
+    });
+    
+    const page = await browser.newPage();
 
-    // Goto page and then do stuff
-    await page.goto(targetUrl, {
-      waitUntil: ["domcontentloaded", "networkidle0"]
-    })
+    await page.goto(pageToScreenshot);
 
-    await page.waitForSelector('#phenomic')
+    const screenshot = await page.screenshot({ encoding: 'binary' });
 
-    theTitle = await page.title();
-
-    console.log('done on page', theTitle)
-
-  } catch (error) {
-    console.log('error', error)
-    return callback(null, {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: error
-      })
-    })
-  } finally {
-    // close browser
-    if (browser !== null) {
-      await browser.close()
+    await browser.close();
+  
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+            message: `Complete screenshot of ${pageToScreenshot}`, 
+            buffer: screenshot 
+        })
     }
-  }
 
-  return callback(null, {
-    statusCode: 200,
-    body: JSON.stringify({
-      title: theTitle,
-    })
-  })
 }
